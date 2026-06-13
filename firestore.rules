@@ -1,0 +1,270 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default-deny catch-all safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Shared ID validation helper
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function incoming() { 
+      return request.resource.data; 
+    }
+    
+    function existing() { 
+      return resource.data; 
+    }
+    
+    // Schema Type & Key Check validations
+    function isValidConstructionSite(data) {
+      return data.id is string
+        && data.name is string && data.name.size() <= 200
+        && data.location is string && data.location.size() <= 500
+        && data.supervisorName is string && data.supervisorName.size() <= 200
+        && data.projectValue is number
+        && data.budgetLimit is number
+        && data.clientName is string && data.clientName.size() <= 200
+        && data.clientPhone is string && data.clientPhone.size() <= 100
+        && data.status is string && data.status.size() <= 50
+        && data.startDate is string && data.startDate.size() <= 50;
+    }
+
+    function isValidWorker(data) {
+      return data.id is string
+        && data.name is string && data.name.size() <= 200
+        && data.role is string && data.role.size() <= 100
+        && data.dailyRate is number
+        && data.assignedSiteId is string && data.assignedSiteId.size() <= 100
+        && data.phone is string && data.phone.size() <= 100
+        && data.active is bool
+        && (!('address' in data) || data.address is string)
+        && (!('birthday' in data) || data.birthday is string)
+        && (!('emergencyContactName' in data) || data.emergencyContactName is string)
+        && (!('emergencyContactPhone' in data) || data.emergencyContactPhone is string)
+        && (!('dateHired' in data) || data.dateHired is string)
+        && (!('employmentStatus' in data) || data.employmentStatus is string)
+        && (!('cashbond' in data) || data.cashbond is number);
+    }
+
+    // Multi-device sync schema guards
+    function isValidAttendance(data) {
+      return data.id is string
+        && data.date is string && data.date.size() <= 50
+        && data.workerId is string && data.workerId.size() <= 100
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.status is string && data.status.size() <= 50
+        && data.wageEarned is number;
+    }
+
+    function isValidExpense(data) {
+      return data.id is string
+        && data.date is string && data.date.size() <= 50
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.category is string && data.category.size() <= 100
+        && data.description is string && data.description.size() <= 1000
+        && data.amount is number
+        && data.reimbursed is bool;
+    }
+
+    function isValidClientPayment(data) {
+      return data.id is string
+        && data.date is string && data.date.size() <= 50
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.amount is number
+        && data.paymentMethod is string && data.paymentMethod.size() <= 100
+        && data.milestone is string && data.milestone.size() <= 1000;
+    }
+
+    function isValidClientReceipt(data) {
+      return data.id is string
+        && data.receiptNumber is string && data.receiptNumber.size() <= 100
+        && data.date is string && data.date.size() <= 50
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.clientName is string && data.clientName.size() <= 200
+        && data.amount is number
+        && data.paymentMethod is string && data.paymentMethod.size() <= 100
+        && data.milestoneAndPurpose is string && data.milestoneAndPurpose.size() <= 2000
+        && data.receivedBy is string && data.receivedBy.size() <= 200
+        && (!('notes' in data) || data.notes is string)
+        && (!('issuedAt' in data) || data.issuedAt is string);
+    }
+
+    function isValidSupervisorFund(data) {
+      return data.id is string
+        && data.date is string && data.date.size() <= 50
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.supervisorName is string && data.supervisorName.size() <= 200
+        && data.amount is number
+        && data.givenBy is string && data.givenBy.size() <= 100
+        && (!('notes' in data) || data.notes is string);
+    }
+
+    function isValidDrawingClient(data) {
+      return data.id is string
+        && data.clientName is string && data.clientName.size() <= 200
+        && data.clientAddress is string && data.clientAddress.size() <= 500
+        && data.clientPhone is string && data.clientPhone.size() <= 100
+        && data.serviceType is string && data.serviceType.size() <= 100
+        && data.contractValue is number
+        && data.amountPaid is number
+        && data.currentStep is string && data.currentStep.size() <= 100
+        && data.nextAction is string && data.nextAction.size() <= 500
+        && data.targetDate is string && data.targetDate.size() <= 50
+        && (!('notes' in data) || data.notes is string)
+        && (!('billingRef' in data) || data.billingRef is string);
+    }
+
+    function isValidCompletedProject(data) {
+      return data.id is string
+        && data.name is string && data.name.size() <= 200
+        && data.location is string && data.location.size() <= 500
+        && data.value is number
+        && data.dateFinished is string && data.dateFinished.size() <= 50
+        && data.photoUrl is string;
+    }
+
+    function isValidLoan(data) {
+      return data.workerId is string && data.workerId.size() <= 100
+        && data.type is string && data.type.size() <= 100
+        && data.amount is number
+        && data.date is string && data.date.size() <= 50
+        && (!('notes' in data) || data.notes is string);
+    }
+
+    function isValidSupervisorLoan(data) {
+      return data.id is string
+        && data.supervisorId is string && data.supervisorId.size() <= 100
+        && data.supervisorName is string && data.supervisorName.size() <= 200
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.totalAmount is number
+        && data.date is string && data.date.size() <= 50
+        && (!('notes' in data) || data.notes is string)
+        && (!('payments' in data) || data.payments is list);
+    }
+
+    function isValidWorkerLoan(data) {
+      return data.id is string
+        && data.workerId is string && data.workerId.size() <= 100
+        && data.workerName is string && data.workerName.size() <= 200
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.totalAmount is number
+        && data.date is string && data.date.size() <= 50
+        && (!('notes' in data) || data.notes is string)
+        && (!('payments' in data) || data.payments is list);
+    }
+
+    function isValidAdditionalScope(data) {
+      return data.id is string
+        && data.siteId is string && data.siteId.size() <= 100
+        && data.date is string && data.date.size() <= 50
+        && data.description is string && data.description.size() <= 2000
+        && data.amount is number
+        && (!('approvedBy' in data) || data.approvedBy is string)
+        && (!('notes' in data) || data.notes is string);
+    }
+
+    function isValidActivityLog(data) {
+      return data.id is string
+        && data.timestamp is string && data.timestamp.size() <= 100
+        && data.userRole is string && data.userRole.size() <= 100
+        && (!('siteId' in data) || data.siteId is string)
+        && data.userName is string && data.userName.size() <= 200
+        && (!('actionType' in data) || data.actionType is string)
+        && data.actionDescription is string && data.actionDescription.size() <= 2000;
+    }
+
+    // Match patterns for our real-time synchronization streams
+    match /sites/{siteId} {
+      allow read: if true;
+      allow create, update: if isValidId(siteId) && isValidConstructionSite(incoming());
+      allow delete: if true;
+    }
+    
+    match /workers/{workerId} {
+      allow read: if true;
+      allow create, update: if isValidId(workerId) && isValidWorker(incoming());
+      allow delete: if true;
+    }
+    
+    match /attendance/{attendanceId} {
+      allow read: if true;
+      allow create, update: if isValidId(attendanceId) && isValidAttendance(incoming());
+      allow delete: if true;
+    }
+    
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow create, update: if isValidId(expenseId) && isValidExpense(incoming());
+      allow delete: if true;
+    }
+    
+    match /payments/{paymentId} {
+      allow read: if true;
+      allow create, update: if isValidId(paymentId) && isValidClientPayment(incoming());
+      allow delete: if true;
+    }
+
+    match /supervisor_funds/{fundId} {
+      allow read: if true;
+      allow create, update: if isValidId(fundId) && isValidSupervisorFund(incoming());
+      allow delete: if true;
+    }
+
+    match /drawing_clients/{clientId} {
+      allow read: if true;
+      allow create, update: if isValidId(clientId) && isValidDrawingClient(incoming());
+      allow delete: if true;
+    }
+
+    match /completed_projects/{projectId} {
+      allow read: if true;
+      allow create, update: if isValidId(projectId) && isValidCompletedProject(incoming());
+      allow delete: if true;
+    }
+
+    match /loans/{loanId} {
+      allow read: if true;
+      allow create, update: if isValidLoan(incoming());
+      allow delete: if true;
+    }
+
+    match /ereceipts/{receiptId} {
+      allow read: if true;
+      allow create, update: if isValidId(receiptId) && isValidClientReceipt(incoming());
+      allow delete: if true;
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    match /supervisor_loans/{loanId} {
+      allow read: if true;
+      allow create, update: if isValidId(loanId) && isValidSupervisorLoan(incoming());
+      allow delete: if true;
+    }
+
+    match /worker_loans/{loanId} {
+      allow read: if true;
+      allow create, update: if isValidId(loanId) && isValidWorkerLoan(incoming());
+      allow delete: if true;
+    }
+
+    match /additional_scopes/{scopeId} {
+      allow read: if true;
+      allow create, update: if isValidId(scopeId) && isValidAdditionalScope(incoming());
+      allow delete: if true;
+    }
+
+    match /activity_logs/{logId} {
+      allow read: if true;
+      allow create, update: if isValidId(logId) && isValidActivityLog(incoming());
+      allow delete: if true;
+    }
+  }
+}

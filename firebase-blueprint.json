@@ -1,0 +1,307 @@
+{
+  "entities": {
+    "ConstructionSite": {
+      "title": "ConstructionSite",
+      "description": "Represents a Philippine or global construction site project portfolio with value, budget limit, client info, and status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "supervisorName": { "type": "string" },
+        "projectValue": { "type": "number" },
+        "budgetLimit": { "type": "number" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "status": { "type": "string", "enum": ["planning", "active", "completed", "on-hold"] },
+        "startDate": { "type": "string" }
+      },
+      "required": ["id", "name", "projectValue", "budgetLimit", "status"]
+    },
+    "Worker": {
+      "title": "Worker",
+      "description": "A field craftsman or laborer assigned to a project site.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["Mason", "Laborer", "Carpenter", "Welder", "Electrician", "Operator", "Supervisor", "Foreman", "Admin", "Secretary", "Intern", "Skilled Worker"] },
+        "dailyRate": { "type": "number" },
+        "assignedSiteId": { "type": "string" },
+        "phone": { "type": "string" },
+        "active": { "type": "boolean" },
+        "address": { "type": "string" },
+        "birthday": { "type": "string" },
+        "emergencyContactName": { "type": "string" },
+        "emergencyContactPhone": { "type": "string" },
+        "dateHired": { "type": "string" },
+        "employmentStatus": { "type": "string", "enum": ["Project-based", "Regular", "Probationary", "Intern", "Contractor"] },
+        "cashbond": { "type": "number" }
+      },
+      "required": ["id", "name", "role", "dailyRate", "assignedSiteId", "active"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily attendance for a worker at a specific construction site.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "workerId": { "type": "string" },
+        "siteId": { "type": "string" },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Half-Day"] },
+        "wageEarned": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "date", "workerId", "siteId", "status", "wageEarned"]
+    },
+    "ExpenseRecord": {
+      "title": "ExpenseRecord",
+      "description": "Field petty cash vouchers logged by supervisors.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "siteId": { "type": "string" },
+        "supervisorName": { "type": "string" },
+        "category": { "type": "string", "enum": ["Fuel", "Tea & Meals", "Urgent Material", "Small Tools", "Local Transport", "Worker Advance", "Other"] },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Petty Cash", "Supervisor Card", "Supervisor Personal Out-of-pocket"] },
+        "reimbursed": { "type": "boolean" }
+      },
+      "required": ["id", "date", "siteId", "category", "amount", "reimbursed"]
+    },
+    "ClientPayment": {
+      "title": "ClientPayment",
+      "description": "Milestone payments and multi-stage billing statements logged by the management.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "siteId": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Bank Transfer", "Cash", "Cheque", "Other"] },
+        "milestone": { "type": "string" },
+        "notes": { "type": "string" },
+        "billingReference": { "type": "string" },
+        "billingStage": { "type": "string", "enum": ["Down Payment", "Progress Billing", "Variation Order", "Retention Release"] },
+        "status": { "type": "string", "enum": ["Draft", "Pending Approval", "Partially Paid", "Paid in Full", "Overdue"] },
+        "accomplishmentRate": { "type": "number" },
+        "taxRate": { "type": "number" },
+        "withholdingRate": { "type": "number" },
+        "grossAmount": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "withholdingAmount": { "type": "number" }
+      },
+      "required": ["id", "date", "siteId", "amount", "paymentMethod", "milestone"]
+    },
+    "SupervisorFund": {
+      "title": "SupervisorFund",
+      "description": "Cash allocations given to a supervisor's site fund.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "siteId": { "type": "string" },
+        "supervisorName": { "type": "string" },
+        "amount": { "type": "number" },
+        "notes": { "type": "string" },
+        "givenBy": { "type": "string" }
+      },
+      "required": ["id", "date", "siteId", "supervisorName", "amount", "givenBy"]
+    },
+    "DrawingClient": {
+      "title": "DrawingClient",
+      "description": "Represents a client who availed the services of a drawing or layout plan.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientAddress": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "serviceType": { "type": "string", "enum": ["Architectural Drafting", "3D Render & Interior", "Structural Blueprint Package", "Full Permit Drawings"] },
+        "contractValue": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "currentStep": { "type": "string", "enum": ["Initial Consult", "Concept Proposal", "Schematic Drafting", "Rendering Phase", "Final Notarization", "Completed & Handed-over"] },
+        "nextAction": { "type": "string" },
+        "targetDate": { "type": "string" },
+        "notes": { "type": "string" },
+        "billingRef": { "type": "string" }
+      },
+      "required": ["id", "clientName", "clientAddress", "serviceType", "contractValue", "amountPaid", "currentStep", "nextAction", "targetDate"]
+    },
+    "CompletedProject": {
+      "title": "CompletedProject",
+      "description": "A showcase project completed by RL Construction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "value": { "type": "number" },
+        "dateFinished": { "type": "string" },
+        "photoUrl": { "type": "string" }
+      },
+      "required": ["id", "name", "location", "value", "dateFinished", "photoUrl"]
+    },
+    "Loan": {
+      "title": "Loan",
+      "description": "A field loan or cash advance record.",
+      "type": "object",
+      "properties": {
+        "workerId": { "type": "string" },
+        "type": { "type": "string", "enum": ["company_loan", "cash_advance", "transportation_loan"] },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["workerId", "type", "amount", "date"]
+    },
+    "SupervisorLoan": {
+      "title": "SupervisorLoan",
+      "description": "Represents a custom finance loan, grand cash advance or equipment loan assigned to a Site Supervisor alongside an installment payments ledger.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "supervisorId": { "type": "string" },
+        "supervisorName": { "type": "string" },
+        "siteId": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "date": { "type": "string" },
+        "notes": { "type": "string" },
+        "payments": { "type": "array" }
+      },
+      "required": ["id", "supervisorId", "supervisorName", "totalAmount", "date", "siteId"]
+    },
+    "ClientReceipt": {
+      "title": "ClientReceipt",
+      "description": "Represents an official e-receipt verifying client deposits and payments.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "receiptNumber": { "type": "string" },
+        "date": { "type": "string" },
+        "siteId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Bank Transfer", "Cash", "Cheque", "GCash", "Maya", "Other"] },
+        "milestoneAndPurpose": { "type": "string" },
+        "receivedBy": { "type": "string" },
+        "notes": { "type": "string" },
+        "issuedAt": { "type": "string" }
+      },
+      "required": ["id", "receiptNumber", "date", "siteId", "clientName", "amount", "paymentMethod", "milestoneAndPurpose", "receivedBy"]
+    },
+    "WorkerLoan": {
+      "title": "WorkerLoan",
+      "description": "Information about a long-term loan registered to a construction worker.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "workerId": { "type": "string" },
+        "workerName": { "type": "string" },
+        "siteId": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "date": { "type": "string" },
+        "notes": { "type": "string" },
+        "payments": {
+          "type": "array"
+        }
+      },
+      "required": ["id", "workerId", "workerName", "siteId", "totalAmount", "date"]
+    },
+    "AdditionalScopeItem": {
+      "title": "AdditionalScopeItem",
+      "description": "Represents extra work items, approved variations, or out-of-contract work scopes loaded on a project site.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "siteId": { "type": "string" },
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "approvedBy": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "siteId", "date", "description", "amount"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Real-time logging histories of user sign-ins and supervisor-encoded data entries.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userRole": { "type": "string" },
+        "siteId": { "type": "string" },
+        "userName": { "type": "string" },
+        "actionType": { "type": "string" },
+        "actionDescription": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "userRole", "userName", "actionDescription"]
+    }
+  },
+  "firestore": {
+    "/activity_logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Audit trails for real-time tracking of supervisor logins and data entry updates."
+    },
+    "/worker_loans/{loanId}": {
+      "schema": "WorkerLoan",
+      "description": "Long-term loans and installment payments tracking for construction workers."
+    },
+    "/additional_scopes/{scopeId}": {
+      "schema": "AdditionalScopeItem",
+      "description": "Out-of-contract extra work items and variation order scopes assigned to a project site."
+    },
+    "/sites/{siteId}": {
+      "schema": "ConstructionSite",
+      "description": "Collection of all active and planning projects portfolios with budget parameters."
+    },
+    "/workers/{workerId}": {
+      "schema": "Worker",
+      "description": "Collection of construction laborers and field craftsmen."
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "AttendanceRecord",
+      "description": "Labor daily logging attendance register."
+    },
+    "/expenses/{expenseId}": {
+      "schema": "ExpenseRecord",
+      "description": "Supervisor petty cash logs, reimbursement tracking, and on-site petty claims."
+    },
+    "/payments/{paymentId}": {
+      "schema": "ClientPayment",
+      "description": "Financial accounts receivable invoices, billing statements, accomplishment indicators, and collections ledger."
+    },
+    "/supervisor_funds/{fundId}": {
+      "schema": "SupervisorFund",
+      "description": "Tracking cash allocations allocated to site supervisors."
+    },
+    "/drawing_clients/{clientId}": {
+      "schema": "DrawingClient",
+      "description": "Drawing clients details, drawing plan layout fee payments, tracking current draft step and billing references."
+    },
+    "/completed_projects/{projectId}": {
+      "schema": "CompletedProject",
+      "description": "Portfolio of finished construction deliverables showcased to visitors."
+    },
+    "/loans/{loanId}": {
+      "schema": "Loan",
+      "description": "Worker financial microloans, structural advances, and repayment ledgers."
+    },
+    "/supervisor_loans/{loanId}": {
+      "schema": "SupervisorLoan",
+      "description": "Long-term custom loans and installment payment history logs for site supervisors."
+    },
+    "/settings/{settingId}": {
+      "schema": { "type": "object" },
+      "description": "System-wide persistent configurations like general default admin passcode."
+    },
+    "/ereceipts/{receiptId}": {
+      "schema": "ClientReceipt",
+      "description": "Firestore collection for official manual client payment e-receipt registries."
+    }
+  }
+}

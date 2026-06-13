@@ -1,0 +1,6 @@
+{
+  "name": "RL CONSTRUCTION",
+  "description": "An intuitive local tracker for managing construction site attendance, payroll, supervisor daily expenses, per-site costs, and client milestone payments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

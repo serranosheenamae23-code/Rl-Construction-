@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, onSnapshot, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { logDeletion } from '../lib/recovery';
 import { jsPDF } from 'jspdf';
 
 interface DrawingClient {
@@ -217,6 +218,10 @@ export default function DrawingsLayout() {
     if (!confirmed) return;
 
     try {
+      const backup = drawingClients.find(c => c.id === id);
+      if (backup) {
+        await logDeletion('drawing_clients', id, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted drawing client account of "${backup.clientName}" (${backup.serviceType})`);
+      }
       await deleteDoc(doc(db, 'drawing_clients', id));
     } catch (e) {
       console.error(e);

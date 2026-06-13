@@ -30,8 +30,14 @@ import {
   ShieldAlert,
   Building,
   Cloud,
-  Activity
+  Activity,
+  History,
+  Undo
 } from 'lucide-react';
+
+// Recovery library
+import { logDeletion, logModification } from './lib/recovery';
+import DataRecovery from './components/DataRecovery';
 
 // Types and default data
 import { ConstructionSite, Worker, AttendanceRecord, ExpenseRecord, ClientPayment, SupervisorFund, ClientReceipt, SupervisorLoan, SupervisorLoanPayment, WorkerLoan, AdditionalScopeItem, Announcement } from './types';
@@ -81,6 +87,7 @@ export default function App() {
   
   // Real-time Activity Log tracker state
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [recycleBin, setRecycleBin] = useState<any[]>([]);
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [hasNewActivity, setHasNewActivity] = useState(false);
   const [liveToast, setLiveToast] = useState<any | null>(null);
@@ -214,12 +221,13 @@ export default function App() {
       { id: 'expenses', label: 'Petty Cash', icon: Coins },
       { id: 'reports', label: 'Reports', icon: FileText },
       { id: 'profile', label: 'Company Profile', icon: Building },
+      { id: 'recovery', label: 'Data Recovery', icon: History },
     ];
 
     if (currentRole === 'Site Supervisor') {
       return allTabs.filter(tab => ['dashboard', 'attendance', 'expenses'].includes(tab.id));
     } else if (currentRole === 'Client') {
-      return allTabs.filter(tab => !['attendance', 'expenses'].includes(tab.id));
+      return allTabs.filter(tab => !['attendance', 'expenses', 'recovery'].includes(tab.id));
     }
     return allTabs;
   }, [currentRole]);
@@ -568,6 +576,17 @@ export default function App() {
       console.warn("Firestore activity logs listener failed", error);
     });
 
+    const unsubRecycleBin = onSnapshot(collection(db, 'recycle_bin'), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach((docRef) => {
+        list.push({ id: docRef.id, ...docRef.data() });
+      });
+      list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setRecycleBin(list);
+    }, (error) => {
+      console.warn("Firestore recycle bin listener failed", error);
+    });
+
     return () => {
       unsubSites();
       unsubWorkers();
@@ -582,6 +601,7 @@ export default function App() {
       unsubAdminConfig();
       unsubAnnouncements();
       unsubActivityLogs();
+      unsubRecycleBin();
     };
   }, []);
 
@@ -685,6 +705,10 @@ export default function App() {
   // Delete Supervisor Loan entry
   const handleDeleteSupervisorLoan = async (id: string) => {
     try {
+      const backup = supervisorLoans.find(item => item.id === id);
+      if (backup) {
+        await logDeletion('supervisor_loans', id, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted finance loan record for Supervisor "${backup.supervisorName}" of ₱${backup.totalAmount.toLocaleString()}`);
+      }
       await deleteDoc(doc(db, 'supervisor_loans', id));
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `supervisor_loans/${id}`);
@@ -707,6 +731,11 @@ export default function App() {
   // Update Worker Loan (e.g. adding payment or updating values)
   const handleUpdateWorkerLoan = async (id: string, updates: Partial<WorkerLoan>) => {
     try {
+      const previous = workerLoans.find(l => l.id === id);
+      if (previous) {
+        const updated = { ...previous, ...updates };
+        await logModification('worker_loans', id, previous, updated, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Updated financial loan for Worker "${previous.workerName}"`);
+      }
       await setDoc(doc(db, 'worker_loans', id), updates, { merge: true });
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, `worker_loans/${id}`);
@@ -716,6 +745,10 @@ export default function App() {
   // Delete Worker Loan entry
   const handleDeleteWorkerLoan = async (id: string) => {
     try {
+      const backup = workerLoans.find(item => item.id === id);
+      if (backup) {
+        await logDeletion('worker_loans', id, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted finance loan record for Worker "${backup.workerName}" of ₱${backup.totalAmount.toLocaleString()}`);
+      }
       await deleteDoc(doc(db, 'worker_loans', id));
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `worker_loans/${id}`);
@@ -738,6 +771,10 @@ export default function App() {
   // Delete Additional Scope of Work
   const handleDeleteAdditionalScope = async (id: string) => {
     try {
+      const backup = additionalScopes.find(item => item.id === id);
+      if (backup) {
+        await logDeletion('additional_scopes', id, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted additional work scope "${backup.description}" valued at ₱${backup.amount.toLocaleString()}`);
+      }
       await deleteDoc(doc(db, 'additional_scopes', id));
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `additional_scopes/${id}`);
@@ -764,6 +801,10 @@ export default function App() {
   // Delete a site file
   const handleDeleteSite = async (siteId: string) => {
     try {
+      const backup = sites.find(s => s.id === siteId);
+      if (backup) {
+        await logDeletion('sites', siteId, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted construction site "${backup.name}" in ${backup.location}`);
+      }
       await deleteDoc(doc(db, 'sites', siteId));
       if (selectedSiteId === siteId) {
         setSelectedSiteId(null);
@@ -798,7 +839,9 @@ export default function App() {
     const workerToUpdate = workers.find(w => w.id === workerId);
     if (workerToUpdate) {
       try {
-        await setDoc(doc(db, 'workers', workerId), { ...workerToUpdate, ...updates });
+        const updated = { ...workerToUpdate, ...updates };
+        await logModification('workers', workerId, workerToUpdate, updated, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Updated profile of Worker "${workerToUpdate.name}"`);
+        await setDoc(doc(db, 'workers', workerId), updated);
       } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, `workers/${workerId}`);
       }
@@ -810,7 +853,9 @@ export default function App() {
     const workerToToggle = workers.find(w => w.id === workerId);
     if (workerToToggle) {
       try {
-        await setDoc(doc(db, 'workers', workerId), { ...workerToToggle, active: !workerToToggle.active });
+        const updated = { ...workerToToggle, active: !workerToToggle.active };
+        await logModification('workers', workerId, workerToToggle, updated, 'serranosheenamae23@gmail.com', 'Manager/Admin', `${workerToToggle.active ? 'Suspended/Deactivated' : 'Reactivated'} Worker "${workerToToggle.name}"`);
+        await setDoc(doc(db, 'workers', workerId), updated);
       } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, `workers/${workerId}`);
       }
@@ -820,6 +865,10 @@ export default function App() {
   // Delete worker from system
   const handleDeleteWorker = async (workerId: string) => {
     try {
+      const backup = workers.find(w => w.id === workerId);
+      if (backup) {
+        await logDeletion('workers', workerId, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted worker roster profile "${backup.name}" (${backup.role})`);
+      }
       await deleteDoc(doc(db, 'workers', workerId));
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `workers/${workerId}`);
@@ -876,6 +925,9 @@ export default function App() {
   const handleDeleteExpense = async (expenseId: string) => {
     const backup = expenses.find(e => e.id === expenseId);
     try {
+      if (backup) {
+        await logDeletion('expenses', expenseId, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted petty cash expense for "${backup.category}: ${backup.description}" of ₱${backup.amount.toLocaleString()}`);
+      }
       await deleteDoc(doc(db, 'expenses', expenseId));
       if (backup) {
         const s = sites.find(item => item.id === backup.siteId);
@@ -891,7 +943,9 @@ export default function App() {
     const siteToUpdate = sites.find(s => s.id === siteId);
     if (siteToUpdate) {
       try {
-        await setDoc(doc(db, 'sites', siteId), { ...siteToUpdate, ...updates });
+        const updated = { ...siteToUpdate, ...updates };
+        await logModification('sites', siteId, siteToUpdate, updated, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Updated site details for "${siteToUpdate.name}"`);
+        await setDoc(doc(db, 'sites', siteId), updated);
       } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, `sites/${siteId}`);
       }
@@ -911,6 +965,10 @@ export default function App() {
   // Clear/cancel a supervisor fund allocation record
   const handleDeleteSupervisorFund = async (fundId: string) => {
     try {
+      const backup = supervisorFunds.find(item => item.id === fundId);
+      if (backup) {
+        await logDeletion('supervisor_funds', fundId, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted supervisor fund allocation of ₱${backup.amount.toLocaleString()} given by ${backup.givenBy}`);
+      }
       await deleteDoc(doc(db, 'supervisor_funds', fundId));
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `supervisor_funds/${fundId}`);
@@ -933,6 +991,9 @@ export default function App() {
   const handleDeleteClientPayment = async (paymentId: string) => {
     const backup = payments.find(p => p.id === paymentId);
     try {
+      if (backup) {
+        await logDeletion('payments', paymentId, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted client billing statement of ₱${backup.amount.toLocaleString()} for milestone "${backup.milestone}"`);
+      }
       await deleteDoc(doc(db, 'payments', paymentId));
       if (backup) {
         logActivity('billing', `Voided/Deleted Client Billing Milestone of ₱${backup.amount.toLocaleString()} (${backup.milestone})`);
@@ -963,6 +1024,9 @@ export default function App() {
   const handleDeleteClientReceipt = async (receiptId: string) => {
     const backup = receipts.find(r => r.id === receiptId);
     try {
+      if (backup) {
+        await logDeletion('ereceipts', receiptId, backup, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Deleted client e-receipt #${backup.receiptNumber} representing payment of ₱${backup.amount.toLocaleString()}`);
+      }
       await deleteDoc(doc(db, 'ereceipts', receiptId));
       if (backup) {
         logActivity('receipt', `Voided/Cancelled Official Client E-Receipt #${backup.receiptNumber} valued at ₱${backup.amount.toLocaleString()}`);
@@ -979,6 +1043,10 @@ export default function App() {
   // Update client milestone payment details (with photos/expenses)
   const handleUpdateClientPayment = async (updatedPayment: ClientPayment) => {
     try {
+      const previous = payments.find(p => p.id === updatedPayment.id);
+      if (previous) {
+        await logModification('payments', updatedPayment.id, previous, updatedPayment, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Updated client billing statement for milestone "${updatedPayment.milestone}"`);
+      }
       await setDoc(doc(db, 'payments', updatedPayment.id), updatedPayment);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, `payments/${updatedPayment.id}`);
@@ -2080,6 +2148,14 @@ export default function App() {
             payments={payments}
             currentRole={currentRole}
             assignedSiteId={assignedSiteId}
+          />
+        )}
+
+        {activeTab === 'recovery' && (
+          <DataRecovery
+            recycleBin={recycleBin}
+            currentUserEmail="serranosheenamae23@gmail.com"
+            onActivityLog={(type, desc) => logActivity(type as any, desc)}
           />
         )}
 

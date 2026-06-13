@@ -178,6 +178,20 @@ service cloud.firestore {
         && data.actionDescription is string && data.actionDescription.size() <= 2000;
     }
 
+    function isValidRecycleBinItem(data) {
+      return data.id is string
+        && data.timestamp is string && data.timestamp.size() <= 100
+        && data.type is string && data.type.size() <= 20
+        && data.collectionName is string && data.collectionName.size() <= 100
+        && data.originalId is string && data.originalId.size() <= 100
+        && data.data is map
+        && data.description is string && data.description.size() <= 2000
+        && (!('previousData' in data) || data.previousData is map)
+        && (!('newData' in data) || data.newData is map)
+        && (!('userEmail' in data) || data.userEmail is string)
+        && (!('userName' in data) || data.userName is string);
+    }
+
     // Match patterns for our real-time synchronization streams
     match /sites/{siteId} {
       allow read: if true;
@@ -264,6 +278,12 @@ service cloud.firestore {
     match /activity_logs/{logId} {
       allow read: if true;
       allow create, update: if isValidId(logId) && isValidActivityLog(incoming());
+      allow delete: if true;
+    }
+
+    match /recycle_bin/{itemId} {
+      allow read: if true;
+      allow create, update: if isValidId(itemId) && isValidRecycleBinItem(incoming());
       allow delete: if true;
     }
   }

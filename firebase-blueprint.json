@@ -240,9 +240,32 @@
         "actionDescription": { "type": "string" }
       },
       "required": ["id", "timestamp", "userRole", "userName", "actionDescription"]
+    },
+    "RecycleBinItem": {
+      "title": "RecycleBinItem",
+      "description": "Represents a soft-deleted record or historical state change snapshot for auditable recovery.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "type": { "type": "string", "enum": ["delete", "edit"] },
+        "collectionName": { "type": "string" },
+        "originalId": { "type": "string" },
+        "data": { "type": "object" },
+        "previousData": { "type": "object" },
+        "newData": { "type": "object" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "type", "collectionName", "originalId", "data", "description"]
     }
   },
   "firestore": {
+    "/recycle_bin/{itemId}": {
+      "schema": "RecycleBinItem",
+      "description": "Historical deleted data and audit change logs for full-system visual data recovery."
+    },
     "/activity_logs/{logId}": {
       "schema": "ActivityLog",
       "description": "Audit trails for real-time tracking of supervisor logins and data entry updates."

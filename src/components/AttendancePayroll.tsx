@@ -35,6 +35,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { collection, onSnapshot, addDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
+import { logDeletion } from '../lib/recovery';
 
 // Draws the RL CON logo and structured metadata header for payroll and payslips
 const drawPDFHeaderWithLogo = (doc: jsPDF, title: string, subtitle: string, isLandscape: boolean = false) => {
@@ -259,6 +260,7 @@ export default function AttendancePayroll({
       // 2. Clear all records from the 'loans' Firestore collection of type 'cash_advance'
       const cashAdvanceLoans = allLoans.filter(l => l.type === 'cash_advance');
       for (const l of cashAdvanceLoans) {
+        await logDeletion('loans', l.id, l, 'serranosheenamae23@gmail.com', 'Manager/Admin', `Cleared petty cash advance loan of ₱${l.amount.toLocaleString()} for Worker: "${l.workerName}"`);
         await deleteDoc(doc(db, 'loans', l.id));
       }
 

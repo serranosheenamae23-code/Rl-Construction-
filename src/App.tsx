@@ -225,7 +225,7 @@ export default function App() {
     ];
 
     if (currentRole === 'Site Supervisor') {
-      return allTabs.filter(tab => ['dashboard', 'attendance', 'expenses'].includes(tab.id));
+      return allTabs.filter(tab => ['dashboard', 'sites', 'attendance', 'expenses'].includes(tab.id));
     } else if (currentRole === 'Client') {
       return allTabs.filter(tab => !['attendance', 'expenses', 'recovery'].includes(tab.id));
     }
@@ -1976,8 +1976,8 @@ export default function App() {
         {activeTab === 'sites' && (
           <div className="space-y-4">
             {/* Sites view switcher segment */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 print:hidden">
-              <div className="bg-slate-200/60 p-1 rounded-xl inline-flex gap-1 border border-slate-200/80">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 print:hidden overflow-x-auto scrollbar-none">
+              <div className="bg-slate-200/60 p-1 rounded-xl flex min-w-max gap-1 border border-slate-200/80">
                 <button
                   onClick={() => setSitesSubTab('manager')}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${

@@ -90,6 +90,21 @@ export default function ClientBilling({
 
   // Form states for adding/lodging a payment or billing statement
   const [formSiteId, setFormSiteId] = useState<string>(sites.length > 0 ? sites[0].id : '');
+
+  // Synchronize initial select states once the real-time sites array finishes loading over the network
+  React.useEffect(() => {
+    if (sites.length > 0) {
+      if (!selectedProjectForDetail) {
+        setSelectedProjectForDetail(sites[0].id);
+      }
+      if (!receiptSiteId) {
+        setReceiptSiteId(sites[0].id);
+      }
+      if (!formSiteId) {
+        setFormSiteId(sites[0].id);
+      }
+    }
+  }, [sites, selectedProjectForDetail, receiptSiteId, formSiteId]);
   const [formRefNumber, setFormRefNumber] = useState<string>('');
   const [formStage, setFormStage] = useState<ClientPayment['billingStage']>('Progress Billing');
   const [formStatus, setFormStatus] = useState<ClientPayment['status']>('Paid in Full');

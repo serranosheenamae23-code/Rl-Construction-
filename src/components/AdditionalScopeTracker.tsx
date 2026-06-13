@@ -43,6 +43,17 @@ export default function AdditionalScopeTracker({
     return availableSites[0]?.id || '';
   });
 
+  // Sync selectedSiteId once availableSites loads from real-time database
+  React.useEffect(() => {
+    if (!selectedSiteId && availableSites.length > 0) {
+      if (currentRole === 'Site Supervisor') {
+        setSelectedSiteId(assignedSiteId);
+      } else {
+        setSelectedSiteId(availableSites[0].id);
+      }
+    }
+  }, [availableSites, selectedSiteId, currentRole, assignedSiteId]);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');

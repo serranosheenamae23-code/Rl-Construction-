@@ -32,7 +32,9 @@ import {
   Cloud,
   Activity,
   History,
-  Undo
+  Undo,
+  Contact,
+  FileCheck
 } from 'lucide-react';
 
 // Recovery library
@@ -68,6 +70,8 @@ import DrawingsLayout from './components/DrawingsLayout';
 import WorkspaceHub from './components/WorkspaceHub';
 import LoginGateway from './components/LoginGateway';
 import AdditionalScopeTracker from './components/AdditionalScopeTracker';
+import { CompanyIDGenerator } from './components/CompanyIDGenerator';
+import FormsAgreements from './components/FormsAgreements';
 
 export default function App() {
   const mainId = useId();
@@ -218,16 +222,18 @@ export default function App() {
       { id: 'drawings', label: 'Plan Design Tracker', icon: Compass },
       { id: 'sites', label: currentRole === 'Client' ? 'Project Budget' : 'Billings Ledger', icon: Building2 },
       { id: 'attendance', label: 'Labor', icon: Users },
-      { id: 'expenses', label: 'Petty Cash', icon: Coins },
+      { id: 'expenses', label: 'Material Allowance', icon: Coins },
       { id: 'reports', label: 'Reports', icon: FileText },
+      { id: 'forms', label: 'Forms & Agreements', icon: FileCheck },
+      { id: 'company_id', label: 'Company ID Generator', icon: Contact },
       { id: 'profile', label: 'Company Profile', icon: Building },
       { id: 'recovery', label: 'Data Recovery', icon: History },
     ];
 
     if (currentRole === 'Site Supervisor') {
-      return allTabs.filter(tab => ['dashboard', 'sites', 'attendance', 'expenses'].includes(tab.id));
+      return allTabs.filter(tab => ['dashboard', 'sites', 'attendance', 'expenses', 'company_id', 'forms'].includes(tab.id));
     } else if (currentRole === 'Client') {
-      return allTabs.filter(tab => !['attendance', 'expenses', 'recovery'].includes(tab.id));
+      return allTabs.filter(tab => !['attendance', 'expenses', 'recovery', 'company_id'].includes(tab.id));
     }
     return allTabs;
   }, [currentRole]);
@@ -778,6 +784,17 @@ export default function App() {
       await deleteDoc(doc(db, 'additional_scopes', id));
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `additional_scopes/${id}`);
+    }
+  };
+
+  // Update Additional Scope of Work
+  const handleUpdateAdditionalScope = async (scope: AdditionalScopeItem) => {
+    try {
+      await setDoc(doc(db, 'additional_scopes', scope.id), scope);
+      const s = sites.find(item => item.id === scope.siteId);
+      logActivity('additional_scope', `Updated Approved Additional Scope variation order "${scope.description}" under "${s?.name || 'project'}" to value ₱${scope.amount.toLocaleString()}`);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, `additional_scopes/${scope.id}`);
     }
   };
 
@@ -2052,6 +2069,7 @@ export default function App() {
                 additionalScopes={additionalScopes}
                 onAddAdditionalScope={handleAddAdditionalScope}
                 onDeleteAdditionalScope={handleDeleteAdditionalScope}
+                onUpdateAdditionalScope={handleUpdateAdditionalScope}
                 currentRole={currentRole}
                 assignedSiteId={assignedSiteId}
               />
@@ -2148,6 +2166,17 @@ export default function App() {
             payments={payments}
             currentRole={currentRole}
             assignedSiteId={assignedSiteId}
+          />
+        )}
+
+        {activeTab === 'company_id' && (
+          <CompanyIDGenerator />
+        )}
+
+        {activeTab === 'forms' && (
+          <FormsAgreements
+            workers={workers}
+            sites={sites}
           />
         )}
 

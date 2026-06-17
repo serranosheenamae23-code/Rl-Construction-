@@ -13,7 +13,8 @@ import {
   Clipboard, 
   CheckCircle,
   FolderOpen,
-  Clock
+  Clock,
+  Edit
 } from 'lucide-react';
 
 interface AdditionalScopeTrackerProps {
@@ -21,6 +22,7 @@ interface AdditionalScopeTrackerProps {
   additionalScopes: AdditionalScopeItem[];
   onAddAdditionalScope: (scope: Omit<AdditionalScopeItem, 'id'>) => Promise<void>;
   onDeleteAdditionalScope: (id: string) => Promise<void>;
+  onUpdateAdditionalScope?: (scope: AdditionalScopeItem) => Promise<void>;
   currentRole: UserRole;
   assignedSiteId: string;
 }
@@ -30,6 +32,7 @@ export default function AdditionalScopeTracker({
   additionalScopes,
   onAddAdditionalScope,
   onDeleteAdditionalScope,
+  onUpdateAdditionalScope,
   currentRole,
   assignedSiteId
 }: AdditionalScopeTrackerProps) {
@@ -54,6 +57,7 @@ export default function AdditionalScopeTracker({
     }
   }, [availableSites, selectedSiteId, currentRole, assignedSiteId]);
 
+  const [editingScope, setEditingScope] = useState<AdditionalScopeItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
@@ -65,6 +69,17 @@ export default function AdditionalScopeTracker({
   const selectedSite = sites.find(s => s.id === selectedSiteId);
   const activeScopes = additionalScopes.filter(item => item.siteId === selectedSiteId);
   const totalAmount = activeScopes.reduce((sum, item) => sum + item.amount, 0);
+
+  const handleEditClick = (scope: AdditionalScopeItem) => {
+    setEditingScope(scope);
+    setDate(scope.date);
+    setDescription(scope.description);
+    setAmount(scope.amount.toString());
+    setApprovedBy(scope.approvedBy || '');
+    setNotes(scope.notes || '');
+    setError('');
+    setShowAddModal(true);
+  };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,20 +100,35 @@ export default function AdditionalScopeTracker({
     }
 
     try {
-      await onAddAdditionalScope({
-        siteId: selectedSiteId,
-        date,
-        description: description.trim(),
-        amount: parsedAmt,
-        approvedBy: approvedBy.trim() || 'Client (Approved)',
-        notes: notes.trim()
-      });
+      if (editingScope) {
+        if (onUpdateAdditionalScope) {
+          await onUpdateAdditionalScope({
+            id: editingScope.id,
+            siteId: editingScope.siteId,
+            date,
+            description: description.trim(),
+            amount: parsedAmt,
+            approvedBy: approvedBy.trim() || 'Client (Approved)',
+            notes: notes.trim()
+          });
+        }
+      } else {
+        await onAddAdditionalScope({
+          siteId: selectedSiteId,
+          date,
+          description: description.trim(),
+          amount: parsedAmt,
+          approvedBy: approvedBy.trim() || 'Client (Approved)',
+          notes: notes.trim()
+        });
+      }
 
       // Clear Form
       setDescription('');
       setAmount('');
       setApprovedBy('');
       setNotes('');
+      setEditingScope(null);
       setShowAddModal(false);
     } catch (err: any) {
       setError(err?.message || 'Failed to save additional scope item');
@@ -295,6 +325,7 @@ export default function AdditionalScopeTracker({
             <button
               type="button"
               onClick={() => {
+                setEditingScope(null);
                 setDate(new Date().toISOString().split('T')[0]);
                 setDescription('');
                 setAmount('');
@@ -399,18 +430,28 @@ export default function AdditionalScopeTracker({
                             </td>
                             {currentRole !== 'Client' && (
                               <td className="p-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (window.confirm("Are you sure you want to delete this Approved Additional Scope item?")) {
-                                      onDeleteAdditionalScope(scope.id);
-                                    }
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                                  title="Remove approved scope assignment"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditClick(scope)}
+                                    className="p-1 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors cursor-pointer"
+                                    title="Edit approved scope item"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (window.confirm("Are you sure you want to delete this Approved Additional Scope item?")) {
+                                        onDeleteAdditionalScope(scope.id);
+                                      }
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-red-655 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                    title="Remove approved scope assignment"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -562,7 +603,10 @@ export default function AdditionalScopeTracker({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowAddModal(false)}
+              onClick={() => {
+                setEditingScope(null);
+                setShowAddModal(false);
+              }}
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
             />
 
@@ -576,12 +620,15 @@ export default function AdditionalScopeTracker({
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wider text-yellow-400 flex items-center gap-2">
                     <PlusCircle className="w-5 h-5" />
-                    Record Approved Custom Scope
+                    {editingScope ? 'Edit Approved Custom Scope' : 'Record Approved Custom Scope'}
                   </h3>
                   <p className="text-[9px] text-slate-450 font-semibold font-mono">SITE: {selectedSite?.name.toUpperCase()}</p>
                 </div>
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setEditingScope(null);
+                    setShowAddModal(false);
+                  }}
                   className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
                 >
                   ✕
@@ -658,7 +705,10 @@ export default function AdditionalScopeTracker({
                 <div className="flex gap-3 pt-3">
                   <button
                     type="button"
-                    onClick={() => setShowAddModal(false)}
+                    onClick={() => {
+                      setEditingScope(null);
+                      setShowAddModal(false);
+                    }}
                     className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl cursor-pointer text-center"
                   >
                     No, Cancel
@@ -667,7 +717,7 @@ export default function AdditionalScopeTracker({
                     type="submit"
                     className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-black py-3 rounded-xl cursor-pointer text-center shadow-xs"
                   >
-                    Post Approved Scope
+                    {editingScope ? 'Save Scope Changes' : 'Post Approved Scope'}
                   </button>
                 </div>
               </form>

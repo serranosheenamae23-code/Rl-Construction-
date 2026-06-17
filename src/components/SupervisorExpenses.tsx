@@ -60,6 +60,13 @@ export default function SupervisorExpenses({
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [reimbursementFilter, setReimbursementFilter] = useState('all'); // all, reimbursed, pending
 
+  // Full Screen State
+  const [isFullScreenView, setIsFullScreenView] = useState(false);
+  const [fullSearch, setFullSearch] = useState('');
+  const [fullSite, setFullSite] = useState('all');
+  const [fullCategory, setFullCategory] = useState('all');
+  const [fullStatus, setFullStatus] = useState('all');
+
   // Switch between Claims Ledger and Fund Allocations Ledger
   const [ledgerSubTab, setLedgerSubTab] = useState<'claims' | 'allocations'>('claims');
 
@@ -182,6 +189,28 @@ export default function SupervisorExpenses({
     .reduce((sum, e) => sum + e.amount, 0);
   const pettyCashBalance = totalCashAllocatedSum - totalPettySpendSum;
 
+  // Full Screen Filtered Expense Claims Calculations
+  const fullScreenFiltered = expenses.filter((exp) => {
+    const associatedSite = sites.find(s => s.id === exp.siteId);
+    if (!associatedSite) return false;
+
+    const matchesSite = fullSite === 'all' || exp.siteId === fullSite;
+    const matchesCategory = fullCategory === 'all' || exp.category === fullCategory;
+    
+    let matchesStatus = true;
+    if (fullStatus === 'reimbursed') matchesStatus = exp.reimbursed;
+    if (fullStatus === 'pending') matchesStatus = !exp.reimbursed;
+
+    const searchStr = `${exp.description} ${exp.supervisorName} ${exp.paymentMethod} ${exp.category} ${associatedSite.name}`.toLowerCase();
+    const matchesSearch = searchStr.includes(fullSearch.toLowerCase());
+
+    return matchesSite && matchesCategory && matchesStatus && matchesSearch;
+  });
+
+  const fullScreenTotalAmount = fullScreenFiltered.reduce((sum, e) => sum + e.amount, 0);
+  const fullScreenPaidAmount = fullScreenFiltered.filter(e => e.reimbursed).reduce((sum, e) => sum + e.amount, 0);
+  const fullScreenPendingAmount = fullScreenFiltered.filter(e => !e.reimbursed).reduce((sum, e) => sum + e.amount, 0);
+
   // Auto-fill supervisor name based on site selection
   const handleSiteChange = (siteId: string) => {
     setExpenseSiteId(siteId);
@@ -283,7 +312,7 @@ export default function SupervisorExpenses({
                   onChange={(e) => setExpenseMethod(e.target.value as ExpenseRecord['paymentMethod'])}
                   className="w-full bg-slate-50 border border-slate-200 focus:border-yellow-500 focus:outline-hidden text-xs rounded-lg px-2 py-1 text-slate-900 cursor-pointer font-medium"
                 >
-                  <option value="Petty Cash">Company Petty Cash</option>
+                  <option value="Petty Cash">Company Material Allowance</option>
                   <option value="Supervisor Card">Supervisor Company Card</option>
                   <option value="Supervisor Personal Out-of-pocket">Supervisor Out-of-pocket (Personal)</option>
                 </select>
@@ -457,9 +486,19 @@ export default function SupervisorExpenses({
         {/* Directory Controls & Switcher tabs */}
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-            <h3 className="font-bold text-slate-950 text-sm flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-slate-500" />
-              Petty Cash & Material Allowance Desk
+            <h3 className="font-bold text-slate-950 text-sm flex items-center gap-1.5 flex-wrap justify-between w-full sm:w-auto">
+              <span className="flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-slate-500" />
+                Material Allowance Desk
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsFullScreenView(true)}
+                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold uppercase text-[10px] rounded-lg flex items-center gap-1.5 cursor-pointer shadow-3xs transition-all ml-auto sm:ml-2"
+                title="Open interactive full-screen listing directory"
+              >
+                🖥️ Full Screen Tracker
+              </button>
             </h3>
 
              {/* Micro Filters row */}
@@ -774,6 +813,278 @@ export default function SupervisorExpenses({
                 >
                   Yes, Delete
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ESC key listener for full screen exit */}
+      {(() => {
+        React.useEffect(() => {
+          const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+              setIsFullScreenView(false);
+            }
+          };
+          window.addEventListener('keydown', handleKeyDown);
+          return () => window.removeEventListener('keydown', handleKeyDown);
+        }, []);
+        return null;
+      })()}
+
+      {/* FULL SCREEN INTERACTIVE LISTING WORKSPACE: checking & tracking material allowance */}
+      <AnimatePresence>
+        {isFullScreenView && (
+          <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-md flex items-center justify-center p-4 md:p-6 text-left">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="bg-slate-900 border border-slate-800 text-white w-full h-full max-w-7xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              {/* Header block with Dark Premium vibe */}
+              <div className="p-6 bg-slate-955 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800">
+                <div>
+                  <h4 className="font-black text-sm uppercase tracking-wider text-yellow-400 flex items-center gap-2">
+                    <Coins className="w-5 h-5 text-yellow-400" />
+                    Material Allowance Auditor Board
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-medium font-sans">Immersive full-screen active workspace to track, verify, and filter encoded supervisor field expenditures</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const headers = ["Date", "Site Name", "Category", "Description", "Supervisor", "Payment Method", "Amount (PHP)", "Reimbursed"];
+                      const rows = fullScreenFiltered.map(exp => {
+                        const siteObj = sites.find(s => s.id === exp.siteId);
+                        return [
+                          exp.date,
+                          siteObj ? siteObj.name.replace(/,/g, '') : 'Unknown Site',
+                          exp.category,
+                          exp.description.replace(/,/g, ''),
+                          exp.supervisorName,
+                          exp.paymentMethod,
+                          exp.amount,
+                          exp.reimbursed ? 'Paid' : 'Unpaid'
+                        ];
+                      });
+                      const csvContent = "data:text/csv;charset=utf-8," 
+                        + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                      const encodedUri = encodeURI(csvContent);
+                      const link = document.createElement("a");
+                      link.setAttribute("href", encodedUri);
+                      link.setAttribute("download", `Material_Allowance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold uppercase rounded-lg border border-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    📥 Export Filtered CSV
+                  </button>
+                  <button
+                    onClick={() => setIsFullScreenView(false)}
+                    className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-sm font-sans"
+                  >
+                    ✕ Close Panel
+                  </button>
+                </div>
+              </div>
+
+              {/* KPI Scorecard Cards inside Workspace */}
+              <div className="px-6 py-4 bg-slate-950/40 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-slate-850">
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left">
+                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider font-sans">Entries Counted</span>
+                  <p className="text-base font-black text-yellow-400 font-mono mt-0.5">{fullScreenFiltered.length} Claim items</p>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left">
+                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider font-sans">Selected Total Value</span>
+                  <p className="text-base font-black text-white font-mono mt-0.5">₱{fullScreenTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left">
+                  <span className="text-[9px] text-emerald-500 block font-bold uppercase tracking-wider font-sans">Paid / Reimbursement Total</span>
+                  <p className="text-base font-black text-emerald-400 font-mono mt-0.5">₱{fullScreenPaidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left">
+                  <span className="text-[9px] text-yellow-500 block font-bold uppercase tracking-wider font-sans">Verification Outstanding</span>
+                  <p className="text-base font-black text-yellow-500 font-mono mt-0.5">₱{fullScreenPendingAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+
+              {/* Advanced Interactive Control Deck */}
+              <div className="p-6 bg-slate-900 border-b border-slate-850 grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Site selector */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-450 block font-sans">Site/Project Filtering</label>
+                  {currentRole === 'Admin' ? (
+                    <select
+                      value={fullSite}
+                      onChange={(e) => setFullSite(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-100 focus:border-yellow-500 focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="all">All Project Sites (Active)</option>
+                      {sites.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full bg-slate-955 border border-slate-800 text-xs rounded-lg px-3 py-2 text-yellow-400 font-bold font-mono">
+                      {sites.find(s => s.id === assignedSiteId)?.name || 'YOUR SITE'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Category selector */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-455 block font-sans">Allowance Category</label>
+                  <select
+                    value={fullCategory}
+                    onChange={(e) => setFullCategory(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-100 focus:border-yellow-500 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="all">All Expense Categories</option>
+                    <option value="Fuel">Fuel & Transport</option>
+                    <option value="Tea & Meals">Emergency Tea & Meals</option>
+                    <option value="Small Tools">Small Hand Tools & Hardware</option>
+                    <option value="Materials">Direct Construction Materials</option>
+                    <option value="Emergency Relief">Labor Cash Advance / Emergency</option>
+                    <option value="Others">General / Miscellaneous</option>
+                  </select>
+                </div>
+
+                {/* Reimbursed Status selector */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-455 block font-sans">Billing Settlement Status</label>
+                  <select
+                    value={fullStatus}
+                    onChange={(e) => setFullStatus(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-100 focus:border-yellow-500 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="all">All Settlement Classes</option>
+                    <option value="reimbursed">Paid & Settled</option>
+                    <option value="pending">Claim Pending / Unpaid</option>
+                  </select>
+                </div>
+
+                {/* Search query box */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-455 block font-sans">Search Key terms</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Search description, supervisor, card..."
+                      value={fullSearch}
+                      onChange={(e) => setFullSearch(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 text-xs rounded-lg pl-9 pr-3 py-2 text-slate-100 focus:border-yellow-500 focus:outline-hidden placeholder-slate-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Printable Table Section */}
+              <div className="flex-1 overflow-auto bg-slate-950">
+                <table className="w-full text-xs text-slate-300 text-left">
+                  <thead>
+                    <tr className="bg-slate-950 sticky top-0 border-b border-slate-850 text-[9px] font-black uppercase text-slate-450 tracking-wider">
+                      <th className="p-4">Spent Date</th>
+                      <th className="p-4">Site Designation</th>
+                      <th className="p-4">Category</th>
+                      <th className="p-4">Encoded Description</th>
+                      <th className="p-4">Logged By / Supervisor</th>
+                      <th className="p-4">Payment Method</th>
+                      <th className="p-4 text-right">Amount (₱)</th>
+                      <th className="p-4 text-center">Settlement Status</th>
+                      {currentRole !== 'Client' && <th className="p-4 text-center">Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850 font-medium">
+                    {fullScreenFiltered.length > 0 ? (
+                      fullScreenFiltered.map((exp) => {
+                        const siteObj = sites.find(s => s.id === exp.siteId);
+                        return (
+                          <tr key={exp.id} className="hover:bg-slate-900/40">
+                            <td className="p-4 font-mono font-bold text-[11px] text-slate-500 whitespace-nowrap">
+                              {exp.date}
+                            </td>
+                            <td className="p-4 font-bold text-slate-200">
+                              {siteObj ? siteObj.name : 'Deleted Site'}
+                            </td>
+                            <td className="p-4 whitespace-nowrap">
+                              <span className="font-mono text-[9px] uppercase tracking-wider font-bold bg-yellow-500/10 text-yellow-300 px-2 py-0.5 rounded border border-yellow-500/20">
+                                {exp.category}
+                              </span>
+                            </td>
+                            <td className="p-4 text-slate-100 max-w-sm break-words">
+                              {exp.description}
+                            </td>
+                            <td className="p-4 text-slate-300">
+                              {exp.supervisorName}
+                            </td>
+                            <td className="p-4 whitespace-nowrap">
+                              <span className="flex items-center gap-1 text-[11.5px] text-slate-400">
+                                <CreditCard className="w-3.5 h-3.5 text-slate-500" />
+                                {exp.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="p-4 font-mono font-bold text-emerald-400 text-right whitespace-nowrap">
+                              ₱{exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="p-4 text-center whitespace-nowrap">
+                              {currentRole === 'Admin' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleReimbursed(exp.id)}
+                                  className={`px-3 py-1 rounded-full text-[9px] font-extrabold uppercase transition-all flex items-center justify-center gap-1 mx-auto cursor-pointer border ${
+                                    exp.reimbursed
+                                      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                      : 'bg-rose-950/60 text-rose-450 border-rose-800'
+                                  }`}
+                                >
+                                  {exp.reimbursed ? 'Paid & Settled' : 'Claim Pending'}
+                                </button>
+                              ) : (
+                                <span
+                                  className={`px-3 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-wide border inline-flex items-center justify-center gap-1 select-none ${
+                                    exp.reimbursed
+                                      ? 'bg-emerald-950/40 text-emerald-400 border-emerald-900'
+                                      : 'bg-slate-900 text-slate-500 border-slate-800'
+                                  }`}
+                                >
+                                  {exp.reimbursed ? 'Paid & Settled' : 'Claim Pending'}
+                                </span>
+                              )}
+                            </td>
+                            {currentRole !== 'Client' && (
+                              <td className="p-4 text-center">
+                                <button
+                                  onClick={() => setExpenseToDelete(exp)}
+                                  className="p-1 hover:bg-rose-950 text-slate-500 hover:text-rose-450 rounded-md transition-colors cursor-pointer"
+                                  title="Delete claim record"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={currentRole === 'Client' ? 8 : 9} className="p-16 text-center text-slate-500 italic">
+                          No material allowance expenditures match the current search filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Fullscreen view Footer info */}
+              <div className="p-4 bg-slate-950 text-[10px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-slate-850">
+                <span>Logged as: <strong className="text-slate-350">{currentRole} Workspace</strong></span>
+                <span>Press <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono">ESC</kbd> or click Close to return</span>
               </div>
             </motion.div>
           </div>

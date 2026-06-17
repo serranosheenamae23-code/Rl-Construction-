@@ -709,10 +709,10 @@ export default function Dashboard({
                   </div>
                 </div>
 
-                {/* Petty Cash Expenses */}
+                {/* Material Allowance Expenses */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-300">🪙 Supervisor Petty Cash Vouchers:</span>
+                    <span className="text-slate-300">🪙 Supervisor Material Allowance:</span>
                     <span className="text-slate-200 font-mono">{formatCurrency(totalSupervisorCost)}</span>
                   </div>
                   <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -762,7 +762,7 @@ export default function Dashboard({
                   className="w-full text-left bg-amber-50 hover:bg-amber-100/75 text-amber-800 p-3.5 rounded-xl border border-amber-200/50 flex items-center justify-between cursor-pointer transition-colors"
                 >
                   <div className="pointer-events-none">
-                    <p className="text-xs font-extrabold uppercase tracking-wide">🪙 File Petty Cash spending</p>
+                    <p className="text-xs font-extrabold uppercase tracking-wide">🪙 File Material Allowance spending</p>
                     <p className="text-[9.5px] text-amber-600 mt-0.5">Log fuel, tea & meals, or small tools</p>
                   </div>
                   <span className="text-amber-600 font-bold text-sm">→</span>
@@ -781,11 +781,11 @@ export default function Dashboard({
           {/* Recent petty cash logs list */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
             <span className="text-[10.5px] font-black text-slate-900 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2 block font-sans">
-              📋 Your Site Petty Cash Spendings Line Items
+              📋 Your Site Material Allowance Line Items
             </span>
             <div className="divide-y divide-slate-100 max-h-[280px] overflow-y-auto pr-1">
               {filteredExpenses.length === 0 ? (
-                <p className="text-xs text-slate-400 py-6 text-center italic">No petty cash items logged for this site yet.</p>
+                <p className="text-xs text-slate-400 py-6 text-center italic">No material allowance items logged for this site yet.</p>
               ) : (
                 filteredExpenses.map((exp) => (
                   <div key={exp.id} className="py-2.5 flex items-center justify-between text-xs">
@@ -916,137 +916,7 @@ export default function Dashboard({
         currentRole={currentRole} 
       />
 
-      {/* Executive Key Performance Indicators Dashboard Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* KPI Card 1: Net Profit Margin % */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:bg-slate-50/10 transition-all">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
-                <Percent className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider leading-none">Net Profit Margin</h4>
-                <p className="text-[10px] text-slate-400 mt-0.5">Yield contract sum vs. construction spendings</p>
-              </div>
-            </div>
-            {netProfitMarginPercent > 20 ? (
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded text-[8.5px] uppercase font-black tracking-wider">
-                Optimal Margin
-              </span>
-            ) : netProfitMarginPercent > 10 ? (
-              <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded text-[8.5px] uppercase font-black tracking-wider">
-                Moderate Yield
-              </span>
-            ) : (
-              <span className="bg-rose-50 text-rose-700 border border-rose-100 px-2 py-0.5 rounded text-[8.5px] uppercase font-black tracking-wider animate-pulse">
-                Low Yield Track
-              </span>
-            )}
-          </div>
-          
-          <div className="py-4 flex items-baseline justify-between">
-            <div>
-              <p className="text-3xl font-black text-slate-900 tracking-tight">
-                {netProfitMarginPercent.toFixed(1)}%
-              </p>
-              <p className="text-xs font-bold text-emerald-600 mt-1">
-                Net Margin Profit: {formatCurrency(netProfitAmount)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-slate-500">Contracts Value: <span className="font-bold text-slate-800">{formatCurrency(totalProjectValue)}</span></p>
-              <p className="text-[10px] text-slate-500">Incurred Costs: <span className="font-bold text-rose-600">{formatCurrency(totalSiteExpenses)}</span></p>
-            </div>
-          </div>
-          
-          <div className="space-y-1">
-            <div className="h-2 w-full bg-rose-500 rounded-full overflow-hidden flex">
-              <div 
-                className="h-full bg-emerald-500"
-                style={{ width: `${Math.max(0, Math.min(100, netProfitMarginPercent))}%` }}
-                title="Profit Margin"
-              />
-            </div>
-            <div className="flex justify-between text-[8px] font-mono text-slate-400 uppercase tracking-wider">
-              <span className="text-emerald-500 font-bold font-mono">Profit ({netProfitMarginPercent.toFixed(1)}%)</span>
-              <span className="text-rose-500 font-bold font-mono">Costs ({(100 - Math.max(0, netProfitMarginPercent)).toFixed(1)}%)</span>
-            </div>
-          </div>
-        </div>
 
-        {/* KPI Card 2: Projected Calendar Timeline Variance */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:bg-slate-50/10 transition-all">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider leading-none">Projected Timeline Variance</h4>
-                <p className="text-[10px] text-slate-400 mt-0.5">Pace analysis based on 90-day site target schedules</p>
-              </div>
-            </div>
-            
-            {avgTimelineVarianceDays > 5 ? (
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded text-[8.5px] uppercase font-black tracking-wider">
-                Ahead of Schedule
-              </span>
-            ) : avgTimelineVarianceDays < -5 ? (
-              <span className="bg-rose-50 text-rose-700 border border-rose-100 px-2 py-0.5 rounded text-[8.5px] uppercase font-black tracking-wider animate-pulse">
-                Schedule Lag Warn
-              </span>
-            ) : (
-              <span className="bg-slate-50 text-slate-705 border border-slate-150 px-2 py-0.5 rounded text-[8.5px] uppercase font-black tracking-wider">
-                Stabilized Progress
-              </span>
-            )}
-          </div>
-
-          <div className="py-4 flex items-baseline justify-between">
-            <div>
-              <p className={`text-3xl font-black tracking-tight ${
-                avgTimelineVarianceDays > 2 ? 'text-emerald-600' : 
-                avgTimelineVarianceDays < -2 ? 'text-rose-600' : 'text-slate-900'
-              }`}>
-                {avgTimelineVarianceDays === 0 ? 'On Track' : 
-                 avgTimelineVarianceDays > 0 ? `+${avgTimelineVarianceDays.toFixed(1)} Days` : 
-                 `${avgTimelineVarianceDays.toFixed(1)} Days`
-                }
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Average schedule shift per active construction site
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Active Portfolio Status</span>
-              <div className="flex items-center gap-1 mt-0.5 text-[9px] font-mono">
-                <span className="bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded border border-emerald-100">{aheadCount} Ahead</span>
-                <span className="bg-rose-50 text-rose-700 px-1 py-0.5 rounded border border-rose-100">{behindCount} Behind</span>
-                <span className="bg-slate-100 text-slate-600 px-1 py-0.5 rounded">{onTimeCount} On Time</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="h-2 bg-slate-100 rounded-full relative overflow-hidden border border-slate-200">
-              <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-slate-300 z-10" />
-              <div 
-                className={`h-full absolute top-0 ${avgTimelineVarianceDays > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                style={{
-                  left: avgTimelineVarianceDays > 0 ? '50%' : `${Math.max(0, 50 - Math.min(50, Math.abs(avgTimelineVarianceDays) * 3))}%`,
-                  width: `${Math.min(50, Math.abs(avgTimelineVarianceDays) * 3)}%`
-                }}
-              />
-            </div>
-            <div className="flex justify-between text-[8px] font-mono text-slate-450 uppercase tracking-wider">
-              <span>Schedule Lag (Behind)</span>
-              <span>Perfect Balance</span>
-              <span>Piling Lead (Ahead)</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Stats Summary Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

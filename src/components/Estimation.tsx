@@ -21,7 +21,9 @@ import {
   MapPin,
   User,
   FolderOpen,
-  Clock
+  Clock,
+  Edit,
+  X
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { formatPDFCurrency } from '../utils';
@@ -65,6 +67,7 @@ const getScopeSuffix = (type?: string) => {
   if (!type || type === 'labor_and_materials') return ' (labors and materials)';
   if (type === 'labor_only') return ' (labor only)';
   if (type === 'materials_only') return ' (materials only)';
+  if (type === 'osm') return " (owner's supply materials)";
   if (type === 'none') return '';
   return ` (${type})`;
 };
@@ -302,27 +305,72 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
 
   // Add Item states
   const [newCat, setNewCat] = useState('temporary facility');
+  const [customCategory, setCustomCategory] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newUnitCost, setNewUnitCost] = useState<number>(0);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const handleAddNewItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDesc || newUnitCost <= 0) return;
-    setItems([
-      ...items,
-      {
-        id: `custom-${Date.now()}`,
-        category: newCat,
+    
+    const catToUse = newCat === 'custom' ? (customCategory.trim() || 'Custom Works') : newCat;
+
+    if (editingItemId) {
+      setItems(items.map(it => it.id === editingItemId ? {
+        ...it,
+        category: catToUse,
         description: newDesc,
         totalCost: newUnitCost
-      }
-    ]);
+      } : it));
+      setEditingItemId(null);
+    } else {
+      setItems([
+        ...items,
+        {
+          id: `custom-${Date.now()}`,
+          category: catToUse,
+          description: newDesc,
+          totalCost: newUnitCost
+        }
+      ]);
+    }
     setNewDesc('');
     setNewUnitCost(0);
+    setCustomCategory('');
   };
 
   const handleDeleteItem = (id: string) => {
     setItems(items.filter(i => i.id !== id));
+    if (editingItemId === id) {
+      setEditingItemId(null);
+      setNewDesc('');
+      setNewUnitCost(0);
+      setNewCat('temporary facility');
+      setCustomCategory('');
+    }
+  };
+
+  const handleEditItemClick = (it: LineItem) => {
+    setEditingItemId(it.id);
+    const standardCategories = [
+      'temporary facility',
+      'Excavation and hauling works',
+      'structural works',
+      'Plumbing works',
+      'Painting works',
+      'Mobilization and clearing works',
+      'Other works'
+    ];
+    if (standardCategories.includes(it.category)) {
+      setNewCat(it.category);
+      setCustomCategory('');
+    } else {
+      setNewCat('custom');
+      setCustomCategory(it.category);
+    }
+    setNewDesc(it.description);
+    setNewUnitCost(it.totalCost);
   };
 
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
@@ -660,7 +708,7 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
       // Right side brand highlight
       docInstance.setFontSize(8.5);
       docInstance.setTextColor(229, 192, 96); // Premium Gold Precision
-      docInstance.text('ESTIMATOR & FINANCIAL SUITE', 196, 15, { align: 'right' });
+      docInstance.text('ADDITIONAL SCOPE OF WORK', 196, 15, { align: 'right' });
       docInstance.setFontSize(7.5);
       docInstance.setTextColor(148, 163, 184);
       docInstance.text(`Proposal Date: ${proposalDate}`, 196, 21, { align: 'right' });
@@ -684,7 +732,7 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(15, 23, 42); // slate-900
-    doc.text('PROJECT ESTIMATE METADATA:', 18, y + 6);
+    doc.text('PROJECT ESTIMATE DETAILS:', 18, y + 6);
     doc.text('CLIENT RECORD DETAILS:', 110, y + 6);
 
     doc.setFont('Helvetica', 'normal');
@@ -697,7 +745,6 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
 
     doc.text(`Client Representative: ${proposalClientName}`, 110, y + 12);
     doc.text(`Project Contractor: ${contractorName}`, 110, y + 17);
-    doc.text(`Authority Level: Lead Engineer Approval`, 110, y + 22);
 
     y += 41;
 
@@ -1002,7 +1049,8 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
     doc.setTextColor(100, 116, 139);
     doc.text('Approved Customer / Client Acceptance', 115, y + 14);
 
-    doc.save(`RL_CON_ProposalStatement_${proposalClientName.replace(/\s+/g, '_')}.pdf`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`Rl Con_${proposalClientName}_ Additional scope and ${dateStr}.pdf`);
   };
 
   // Aggregated Cost Calculations
@@ -1108,8 +1156,14 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
     doc.text(addrLines, 148, 68);
 
     // Page 1 main table header: CONSOLIDATED GENERAL SUMMARY BY CATEGORIES
-    doc.setFillColor(15, 23, 42);
+    doc.setFillColor(21, 94, 117); // Rich theme Cyan-800
     doc.rect(16, 88, 184, 8, 'F');
+    
+    // Gold baseline
+    doc.setDrawColor(229, 192, 96);
+    doc.setLineWidth(0.8);
+    doc.line(16, 96, 200, 96);
+
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(255, 255, 255);
@@ -1129,18 +1183,30 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
     let sumY = 102;
     doc.setFontSize(8.5);
 
-    Object.entries(categorySummary).forEach(([category, data]) => {
+    Object.entries(categorySummary).forEach(([category, data], idx) => {
+      // Alternating row background colors
+      if (idx % 2 === 0) {
+        doc.setFillColor(240, 249, 252); // Soft cyan/blue tint
+      } else {
+        doc.setFillColor(248, 250, 252); // Soft slate tint
+      }
+      doc.rect(16, sumY - 5.5, 184, 8.2, 'F');
+
+      // Left accent highlight gold strip
+      doc.setFillColor(229, 192, 96); // Metallic Gold #E5C060
+      doc.rect(16, sumY - 5.5, 1.5, 8.2, 'F');
+
       doc.setFont('Helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text(category, 18, sumY);
+      doc.text(category, 20, sumY);
       
       doc.setFont('Helvetica', 'bold');
       doc.setTextColor(30, 41, 59);
       doc.text(`Php ${data.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 194, sumY, { align: 'right' });
 
-      doc.setDrawColor(241, 245, 249);
-      doc.setLineWidth(0.5);
-      doc.line(16, sumY + 3.5, 200, sumY + 3.5);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.4);
+      doc.line(16, sumY + 2.7, 200, sumY + 2.7);
       sumY += 9;
     });
 
@@ -1274,9 +1340,14 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
       doc.setTextColor(100, 116, 139);
       doc.text('The following table details the customized main category groups, statement of works descriptions, and allocated costs:', 16, 41);
 
-      // Detailed cost items table
-      doc.setFillColor(15, 23, 42);
+      // Detailed cost items table - Cyan Theme
+      doc.setFillColor(21, 94, 117); // Cyan-800
       doc.rect(16, 46, 184, 8, 'F');
+      
+      // Gold line separator
+      doc.setDrawColor(229, 192, 96);
+      doc.setLineWidth(0.8);
+      doc.line(16, 54, 200, 54);
       
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(8);
@@ -1288,16 +1359,44 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
       let itemY = 60;
       doc.setTextColor(51, 65, 85);
 
-      items.forEach((item) => {
+      items.forEach((item, rowIdx) => {
+        // Parse and calculate detailed itemized bullet wrapping
+        const descWrappedLines: { text: string; isBulletStart: boolean }[] = [];
+        const rawDescLines = (item.description || '').split('\n').filter(l => l.trim().length > 0);
+        
+        if (rawDescLines.length === 0) {
+          descWrappedLines.push({ text: '-', isBulletStart: false });
+        } else {
+          rawDescLines.forEach((rawL) => {
+            const rawText = rawL.trim();
+            // Wrap text in 114mm column (6mm left margin for bullet hanging indent)
+            const wrappedSublines = doc.splitTextToSize(rawText, 114);
+            wrappedSublines.forEach((subL, idx) => {
+              descWrappedLines.push({
+                text: subL,
+                isBulletStart: idx === 0
+              });
+            });
+          });
+        }
+
+        const catLines: string[] = doc.splitTextToSize(item.category, 45);
+        const maxTextHeight = Math.max(catLines.length, descWrappedLines.length) * 4;
+        const cellSpan = Math.max(7, maxTextHeight + 4);
+
         // Prevent printing text too closely if we overflow y
-        if (itemY > 230) {
+        if (itemY + cellSpan > 250) {
           doc.addPage();
           pageNum++;
           drawPage2MiniHeader();
 
           // Detailed cost items table header redraw
-          doc.setFillColor(15, 23, 42);
+          doc.setFillColor(21, 94, 117); // Cyan-800
           doc.rect(16, 32, 184, 8, 'F');
+          
+          doc.setDrawColor(229, 192, 96);
+          doc.setLineWidth(0.8);
+          doc.line(16, 40, 200, 40);
           
           doc.setFont('Helvetica', 'bold');
           doc.setFontSize(8);
@@ -1309,25 +1408,46 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
           itemY = 46;
         }
 
-        // Wrap SOW description to fit 120mm column
-        const descLines: string[] = doc.splitTextToSize(item.description || '-', 120);
-        const catLines: string[] = doc.splitTextToSize(item.category, 45);
-        const maxTextHeight = Math.max(catLines.length, descLines.length) * 4;
+        // Alternating row styling
+        if (rowIdx % 2 === 0) {
+          doc.setFillColor(240, 249, 252); // Light cyan tint
+        } else {
+          doc.setFillColor(255, 255, 255);
+        }
+        // Fill full row block height
+        doc.rect(16, itemY - 3, 184, cellSpan, 'F');
+        
+        // Draw subtle cell boundaries
+        doc.setDrawColor(186, 230, 253); // Sky soft border
+        doc.setLineWidth(0.3);
+        doc.line(16, itemY - 3, 16, itemY - 3 + cellSpan);
+        doc.line(200, itemY - 3, 200, itemY - 3 + cellSpan);
         
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(8);
         doc.setTextColor(15, 23, 42);
-        // Print Category
+        // Print Category Group
         catLines.forEach((line, lineIdx) => {
-          doc.text(line, 18, itemY + (lineIdx * 4));
+          doc.text(line, 19, itemY + (lineIdx * 4));
         });
         
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(71, 85, 105);
-        // Print manual Description of Works
-        descLines.forEach((line, lineIdx) => {
-          doc.text(line, 68, itemY + (lineIdx * 4));
+        // Print itemized bullet list Description of Works
+        descWrappedLines.forEach((lineInfo, lineIdx) => {
+          const yPos = itemY + (lineIdx * 4);
+          if (lineInfo.isBulletStart) {
+            // Draw a themed bullet point color dot
+            doc.setFont('Helvetica', 'bold');
+            doc.setTextColor(21, 94, 117); // theme Cyan bullet
+            doc.text('•', 68, yPos);
+            
+            doc.setFont('Helvetica', 'normal');
+            doc.setTextColor(71, 85, 105);
+            doc.text(lineInfo.text, 71.5, yPos);
+          } else {
+            doc.setFont('Helvetica', 'normal');
+            doc.setTextColor(71, 85, 105);
+            doc.text(lineInfo.text, 71.5, yPos);
+          }
         });
 
         // Print Amount
@@ -1336,10 +1456,9 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
         doc.setTextColor(15, 23, 42);
         doc.text(`Php ${item.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 196, itemY + 1, { align: 'right' });
 
-        doc.setDrawColor(241, 245, 249);
+        doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.4);
-        const cellSpan = Math.max(6, maxTextHeight + 4);
-        doc.line(16, itemY + cellSpan - 2, 200, itemY + cellSpan - 2);
+        doc.line(16, itemY + cellSpan - 3, 200, itemY + cellSpan - 3);
         
         itemY += cellSpan;
       });
@@ -1465,8 +1584,10 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
     doc.setTextColor(100, 116, 139);
     doc.text('Approved Customer / Client Acceptance', 130, termsY + 14);
 
-    // Save final output beautifully
-    doc.save(`Estimate_Proposal_${clientName.replace(/\s+/g, '_') || 'Draft'}.pdf`);
+    // Save final output with custom format clientname_quote_date
+    const sanitizedClient = (clientName || 'Draft').trim().replace(/[^a-zA-Z0-9]/g, '_');
+    const isoDateStr = new Date().toISOString().split('T')[0];
+    doc.save(`${sanitizedClient}_quote_${isoDateStr}.pdf`);
   };
 
   const exportToSheetsCSV = () => {
@@ -2070,6 +2191,7 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
                   <option value="labor_and_materials">Labors and Materials</option>
                   <option value="labor_only">Labor Only</option>
                   <option value="materials_only">Materials Only</option>
+                  <option value="osm">OSM / Owner\'s Supply Materials</option>
                   <option value="none">None (No Suffix)</option>
                 </select>
               </div>
@@ -2462,8 +2584,15 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
             </div>
 
             {/* Add simplified custom category item form */}
-            <form onSubmit={handleAddNewItem} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl items-end text-xs">
-              <div className="md:col-span-4 space-y-1">
+            <form 
+              onSubmit={handleAddNewItem} 
+              className={`grid grid-cols-1 md:grid-cols-12 gap-3 p-3 border rounded-xl items-end text-xs transition-all ${
+                editingItemId 
+                  ? 'bg-yellow-50/70 border-yellow-200 shadow-inner' 
+                  : 'bg-slate-50 border-slate-200 shadow-xs'
+              }`}
+            >
+              <div className={`${newCat === 'custom' ? 'md:col-span-2' : 'md:col-span-4'} space-y-1`}>
                 <label className="text-[10px] font-extrabold uppercase text-slate-500 block">Category of Works Group *</label>
                 <select
                   value={newCat}
@@ -2479,18 +2608,36 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
                   <option value="Painting works">Painting works</option>
                   <option value="Mobilization and clearing works">Mobilization and clearing works</option>
                   <option value="Other works">Other custom works</option>
+                  <option value="custom">✍️ Custom Category...</option>
                 </select>
               </div>
 
+              {newCat === 'custom' && (
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-slate-500 block">Type Specific Category *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Tile works, Joinery"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 focus:border-yellow-500 focus:outline-hidden font-bold"
+                  />
+                </div>
+              )}
+
               <div className="md:col-span-5 space-y-1">
-                <label className="text-[10px] font-extrabold uppercase text-slate-500 block">Manual Description of Works *</label>
-                <input
-                  type="text"
+                <label className="text-[10px] font-extrabold uppercase text-slate-500 block flex justify-between">
+                  <span>Manual Description of Works *</span>
+                  <span className="text-[8px] text-slate-400 normal-case">Write one itemized task per line</span>
+                </label>
+                <textarea
                   required
-                  placeholder="e.g. Setting up safety barrier boards and floor protection..."
+                  rows={2}
+                  placeholder={`Setting up safety barrier boards and floor protection\nInstallation of carpentry partition framing\nFinal clean up and debris clearing`}
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 focus:border-yellow-500 focus:outline-hidden"
+                  className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 focus:border-yellow-500 focus:outline bg-white leading-relaxed resize-none h-[38px]"
                 />
               </div>
 
@@ -2508,13 +2655,39 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
               </div>
 
               <div className="md:col-span-1">
-                <button
-                  type="submit"
-                  className="w-full bg-slate-900 border border-slate-950 font-bold py-1.5 px-3 rounded-lg text-yellow-500 hover:bg-slate-800 cursor-pointer flex justify-center items-center h-[34px] transition-all"
-                  title="Add Category Block"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+                {editingItemId ? (
+                  <div className="flex gap-1">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-2 rounded-lg cursor-pointer flex justify-center items-center h-[34px] transition-all"
+                      title="Save changes"
+                    >
+                      <Check className="w-4 h-4 font-black text-white" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingItemId(null);
+                        setNewDesc('');
+                        setNewUnitCost(0);
+                        setNewCat('temporary facility');
+                        setCustomCategory('');
+                      }}
+                      className="flex-1 bg-slate-200 hover:bg-slate-350 text-slate-700 font-bold py-1.5 px-2 rounded-lg cursor-pointer flex justify-center items-center h-[34px] transition-all"
+                      title="Cancel edit"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="w-full bg-slate-900 border border-slate-950 font-bold py-1.5 px-3 rounded-lg text-yellow-500 hover:bg-slate-800 cursor-pointer flex justify-center items-center h-[34px] transition-all"
+                    title="Add Category Block"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </form>
 
@@ -2532,27 +2705,41 @@ export default function Estimation({ sites = [], additionalScopes = [] }: Estima
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {items.length > 0 ? (
                     items.map((it) => (
-                      <tr key={it.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3">
+                      <tr key={it.id} className={`hover:bg-slate-50 transition-colors ${editingItemId === it.id ? 'bg-yellow-50/40 border-l-2 border-yellow-405 font-medium' : ''}`}>
+                        <td className="p-3 whitespace-nowrap">
                           <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-800 text-[9px] font-black uppercase rounded">
                             {it.category}
                           </span>
                         </td>
                         <td className="p-3 text-slate-650 leading-relaxed font-semibold">
-                          {it.description}
+                          <ul className="list-disc pl-4 space-y-0.5">
+                            {(it.description || '').split('\n').filter(line => line.trim().length > 0).map((line, idx) => (
+                              <li key={idx}>{line.trim()}</li>
+                            ))}
+                          </ul>
                         </td>
                         <td className="p-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                           ₱ {it.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="p-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteItem(it.id)}
-                            className="p-1 hover:bg-rose-50 rounded text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
-                            title="Delete category scope"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleEditItemClick(it)}
+                              className={`p-1 hover:bg-yellow-100 rounded text-slate-500 hover:text-yellow-600 transition-colors cursor-pointer ${editingItemId === it.id ? 'text-yellow-600 bg-yellow-50' : ''}`}
+                              title="Edit cost item"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(it.id)}
+                              className="p-1 hover:bg-rose-50 rounded text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
+                              title="Delete category scope"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
